@@ -23,12 +23,29 @@ def build_dataset(total_sample_num):
     # print(Y)
     return torch.FloatTensor(X), torch.LongTensor(Y)
 
+# 测试
+def evaluate(model):
+    model.eval()
+    test_sample_num = 100
+    x, y = build_dataset(test_sample_num)
+    correct, wrong = 0, 0
+    with torch.no_grad():
+        y_pred = model(x)  # 模型预测
+        for y_p, y_t in zip(y_pred, y):  # 与真实标签进行对比
+            if torch.argmax(y_p) == int(y_t):
+                correct += 1
+            else:
+                wrong += 1
+
+    print("正确预测个数：%d, 正确率：%f" % (correct, correct / (correct + wrong)))
+    return correct / (correct + wrong)
+
 
 # 定义简单模型
 class SimpleClassifier(nn.Module):
     def __init__(self, input_size):
         super(SimpleClassifier, self).__init__()
-        self.linear = nn.Linear(input_size, 5)  # 隐藏层
+        self.linear = nn.Linear(input_size, 5)  # 线性层
         self.loss = nn.functional.cross_entropy # # loss函数采用交叉熵损失 nn.CrossEntropyLoss()内部已包含 softmax + cross entropy 计算
 
     def forward(self, x, y=None):
@@ -36,7 +53,7 @@ class SimpleClassifier(nn.Module):
         if y is not None:
             return self.loss(y_pred, y)
         else:
-            return y_pred  # 输出预测结果
+            return torch.softmax(y_pred, dim=1)
 
 # 参数
 vector_dim = 5  # 向量维度
@@ -71,10 +88,9 @@ for epoch in range(epochs):
         optimizer.zero_grad()# 梯度归零
         watch_loss.append(loss.item())
     print("=========\n第%d轮平均loss:%f" % (epoch + 1, np.mean(watch_loss)))
-        #acc = evaluate(model)  # 测试本轮模型结果
-        #log.append([acc, float(np.mean(watch_loss))])
+    acc = evaluate(model)  # 测试本轮模型结果
+    log.append([acc, float(np.mean(watch_loss))])
 torch.save(model.state_dict(), 'model.pt')
-
 
 # 使用训练好的模型做预测
 def predict(model_path, input_vec):
@@ -88,9 +104,3 @@ def predict(model_path, input_vec):
         result = model.forward(torch.FloatTensor(input_vec))  # 模型预测
     for vec, res in zip(input_vec, result):
         print("输入：%s, 预测类别：%s, 概率值：%s" % (vec, torch.argmax(res), res))  # 打印结果
-# 测试
-"""with torch.no_grad():
-    test_X, test_y = build_dataset(100)
-    predictions = model(test_X).argmax(dim=1)
-    accuracy = (predictions == test_y).float().mean()
-    print(f'Test Accuracy: {accuracy:.4f}')"""
